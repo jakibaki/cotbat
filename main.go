@@ -6,13 +6,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
 const (
-	baseUrl    = "http://thecatapi.com"
-	getPath    = "/api/images/get"
+	baseUrl = "http://thecatapi.com"
+	getPath = "/api/images/get"
 )
 
 const (
@@ -27,20 +25,6 @@ const (
 	// small, med, full
 	imgSizeKey = "size"
 )
-
-func shutDownOnSignals() {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT)
-	<-ch
-	log.Println("Shutdown gracefully")
-	os.Exit(0)
-}
-
-func parseValuesFromConfig() (port, imgType, imgSize string) {
-	// Lookup port from os args
-	portString := flag.Lookup(portKey).Value.String()
-	return portString, os.Getenv("COT_TYPE"), os.Getenv("COT_SIZE")
-}
 
 func buildServeFunction(urlPath, imgType, imgSize string) http.HandlerFunc {
 	u, err := url.Parse(urlPath)
@@ -59,20 +43,21 @@ func buildServeFunction(urlPath, imgType, imgSize string) http.HandlerFunc {
 	}
 }
 
-func setupLogging() {
-}
-
 func main() {
 	// Add command line parameter
 	flag.String(portKey, "80", "Specify port to serve on")
 	flag.String(logFileKey, "log.log", "the output log file")
 	flag.Parse()
 
-	setupLogging()
+	f, err := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
 
-	port, imgType, imgSize := parseValuesFromConfig()
+	log.SetOutput(f)
 
-	go shutDownOnSignals()
+	port, imgType, imgSize := "80", "jpg", "small"
 
 	sv := buildServeFunction(baseUrl+getPath, imgType, imgSize)
 	http.HandleFunc("/", sv)
